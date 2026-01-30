@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const WS_URL = 'ws://localhost:8000/ws/traffic';
-const API_URL = 'http://localhost:8000';
+// Use environment variables for API URLs (works with Vite)
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Full WebSocket endpoint
+const WS_TRAFFIC_URL = `${WS_URL}/traffic`;
 
 /**
  * Custom hook for WebSocket connection to traffic monitoring backend.
@@ -65,7 +69,7 @@ export function useTrafficData() {
     }
 
     try {
-      const ws = new WebSocket(WS_URL);
+      const ws = new WebSocket(WS_TRAFFIC_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
