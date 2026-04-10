@@ -9,13 +9,14 @@ from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass, field
 from loguru import logger
 import time
+from pathlib import Path
 
 try:
     from ultralytics import YOLO
     YOLO_AVAILABLE = True
 except ImportError:
     YOLO_AVAILABLE = False
-    logger.warning("Ultralytics YOLO not available, using simulation mode")
+    logger.error("Ultralytics YOLO is not available")
 
 from config.settings import settings
 
@@ -72,48 +73,52 @@ class VehicleDetector:
         self.confidence = settings.YOLO_CONFIDENCE
         self.iou_threshold = settings.YOLO_IOU_THRESHOLD
         self._initialized = False
-        self._simulation_mode = not YOLO_AVAILABLE
         
         # Detection counters
         self.total_detections = 0
         self.detection_history: List[Dict] = []
         
     def initialize(self) -> bool:
-        """Initialize the YOLO model."""
+        """Initialize the local YOLO model (auto-download if missing)."""
         if self._initialized:
             return True
             
         try:
-            if YOLO_AVAILABLE and not self._simulation_mode:
-                logger.info(f"Loading YOLO model: {self.model_path}")
-                self.model = YOLO(self.model_path)
-                
-                # Set device
-                if self.device == "auto":
-                    # Auto-detect best device
-                    import torch
-                    if torch.cuda.is_available():
-                        self.device = "cuda"
-                    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-                        self.device = "mps"
-                    else:
-                        self.device = "cpu"
-                
-                logger.info(f"YOLO model loaded on device: {self.device}")
-                self._initialized = True
-                return True
-            else:
-                logger.info("Running in simulation mode (no YOLO)")
-                self._simulation_mode = True
-                self._initialized = True
-                return True
+            if not YOLO_AVAILABLE:
+                raise RuntimeError(
+                    "Ultralytics is required for local YOLO inference. "
+                    "Install with: pip install ultralytics"
+                )
+
+            model_path = self.model_path
+            if not Path(model_path).is_absolute():
+                candidate = settings.BASE_DIR / model_path
+                if candidate.exists():
+                    model_path = str(candidate)
+
+            if not Path(model_path).exists() and Path(self.model_path).name == "yolov8n.pt":
+                logger.warning("Local yolov8n.pt not found. Ultralytics will auto-download it.")
+
+            logger.info(f"Loading YOLO model: {model_path}")
+            self.model = YOLO(model_path)
+
+            if self.device == "auto":
+                import torch
+                if torch.cuda.is_available():
+                    self.device = "cuda"
+                elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    self.device = "mps"
+                else:
+                    self.device = "cpu"
+
+            logger.info(f"YOLO model loaded on device: {self.device}")
+            self._initialized = True
+            return True
                 
         except Exception as e:
             logger.error(f"Error initializing YOLO model: {e}")
-            logger.info("Falling back to simulation mode")
-            self._simulation_mode = True
-            self._initialized = True
-            return True
+            self._initialized = False
+            return False
     
     def _simulate_detections(self, frame: np.ndarray) -> List[Detection]:
         """
@@ -304,11 +309,8 @@ class VehicleDetector:
         Returns:
             List of Detection objects
         """
-        if not self._initialized:
-            self.initialize()
-        
-        if self._simulation_mode:
-            return self._simulate_detections(frame)
+        if not self._initialized and not self.initialize():
+            return []
         
         detections = []
         
@@ -361,8 +363,7 @@ class VehicleDetector:
             
         except Exception as e:
             logger.error(f"Detection error: {e}")
-            # Fallback to simulation
-            return self._simulate_detections(frame)
+            return []
         
         return detections
     

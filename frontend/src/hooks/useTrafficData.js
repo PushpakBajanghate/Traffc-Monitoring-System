@@ -1,8 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+function normalizeLocalhost(url = '', ws = false) {
+  const fallback = ws ? 'ws://127.0.0.1:8000/ws' : 'http://127.0.0.1:8000';
+  const base = (url || fallback).replace(/\/+$/, '');
+  return base
+    .replace('ws://localhost:', 'ws://127.0.0.1:')
+    .replace('wss://localhost:', 'wss://127.0.0.1:')
+    .replace('http://localhost:', 'http://127.0.0.1:')
+    .replace('https://localhost:', 'https://127.0.0.1:');
+}
+
 // Use environment variables for API URLs (works with Vite)
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/ws';
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const WS_URL = normalizeLocalhost(import.meta.env.VITE_WS_URL, true);
+const API_URL = normalizeLocalhost(import.meta.env.VITE_API_URL, false);
 
 // Full WebSocket endpoint
 const WS_TRAFFIC_URL = `${WS_URL}/traffic`;
@@ -62,6 +72,8 @@ export function useTrafficData() {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const pollIntervalRef = useRef(null);
+  const shouldReconnectRef = useRef(true);
+  const isUnmountedRef = useRef(false);
 
   // Fetch data via REST API (fallback)
   const fetchTrafficStatus = useCallback(async () => {
@@ -79,7 +91,15 @@ export function useTrafficData() {
 
   // Setup WebSocket connection
   const connectWebSocket = useCallback(() => {
+    if (!shouldReconnectRef.current || isUnmountedRef.current) {
+      return;
+    }
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    if (wsRef.current?.readyState === WebSocket.CONNECTING) {
       return;
     }
 
@@ -90,6 +110,11 @@ export function useTrafficData() {
       ws.onopen = () => {
         console.log('WebSocket connected');
         setConnectionStatus('connected');
+
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
         
         // Clear polling if active
         if (pollIntervalRef.current) {
@@ -120,6 +145,10 @@ export function useTrafficData() {
       ws.onclose = () => {
         console.log('WebSocket disconnected');
         setConnectionStatus('disconnected');
+
+        if (!shouldReconnectRef.current || isUnmountedRef.current) {
+          return;
+        }
         
         // Start polling as fallback
         if (!pollIntervalRef.current) {
@@ -127,6 +156,9 @@ export function useTrafficData() {
         }
         
         // Attempt to reconnect
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
         reconnectTimeoutRef.current = setTimeout(() => {
           console.log('Attempting to reconnect...');
           setConnectionStatus('connecting');
@@ -152,20 +184,29 @@ export function useTrafficData() {
 
   // Initialize connection
   useEffect(() => {
+    isUnmountedRef.current = false;
+    shouldReconnectRef.current = true;
+
     connectWebSocket();
     
     // Initial fetch
     fetchTrafficStatus();
 
     return () => {
+      isUnmountedRef.current = true;
+      shouldReconnectRef.current = false;
+
       if (wsRef.current) {
         wsRef.current.close();
+        wsRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
     };
   }, [connectWebSocket, fetchTrafficStatus]);

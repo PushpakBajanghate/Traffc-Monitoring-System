@@ -38,12 +38,25 @@ class VideoCapture:
         """Initialize the video capture object."""
         try:
             if self.source == "demo":
-                # Demo mode - will generate synthetic frames
-                logger.info("Initializing demo mode video source")
-                return True
+                logger.error("Demo video source is disabled for production real-time mode")
+                return False
             elif self.source.isdigit():
-                # Webcam
-                self.cap = cv2.VideoCapture(int(self.source))
+                # Webcam with required fallback: 0 -> 1
+                requested_index = int(self.source)
+                camera_indices = [requested_index]
+                if requested_index == 0:
+                    camera_indices = [0, 1]
+                elif requested_index == 1:
+                    camera_indices = [1, 0]
+
+                for idx in camera_indices:
+                    cap = cv2.VideoCapture(idx)
+                    if cap and cap.isOpened():
+                        self.cap = cap
+                        self.source = str(idx)
+                        break
+                    if cap:
+                        cap.release()
             elif self.source.startswith(('rtsp://', 'http://', 'https://')):
                 # Network stream
                 self.cap = cv2.VideoCapture(self.source)
@@ -59,14 +72,12 @@ class VideoCapture:
                 logger.info(f"Video capture initialized: {self.source}")
                 return True
             else:
-                logger.warning(f"Failed to open video source: {self.source}, falling back to demo mode")
-                self.source = "demo"
-                return True
+                logger.error(f"Failed to open video source: {self.source}")
+                return False
                 
         except Exception as e:
             logger.error(f"Error initializing video capture: {e}")
-            self.source = "demo"
-            return True
+            return False
     
     def _generate_demo_frame(self) -> np.ndarray:
         """
@@ -132,18 +143,13 @@ class VideoCapture:
             return False, None
         
         try:
-            if self.source == "demo":
-                # Generate demo frame
-                frame = self._generate_demo_frame()
-                self.frame_count += 1
-                return True, frame
-            elif self.cap and self.cap.isOpened():
+            if self.cap and self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if ret:
                     self.frame_count += 1
                     return True, frame
                 else:
-                    # Video file ended, loop back
+                    # Loop video files; for camera streams return a failed read.
                     self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                     return False, None
             else:
