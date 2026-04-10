@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Use environment variables for API URLs (works with Vite)
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/ws';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 // Full WebSocket endpoint
 const WS_TRAFFIC_URL = `${WS_URL}/traffic`;
@@ -43,7 +43,17 @@ export function useTrafficData() {
     lane_counts: {},
     signal_times: {},
     priority_lane: null,
-    signal_mode: 'NORMAL'
+    signal_mode: 'NORMAL',
+    // Intersection network data
+    intersections: [],
+    green_corridor: [],
+    // Solar power data
+    solar_data: {},
+    // Environmental sensor data
+    environmental_data: {},
+    // Alert system data
+    alerts: [],
+    alert_summary: {},
   });
   
   const [connectionStatus, setConnectionStatus] = useState('connecting');

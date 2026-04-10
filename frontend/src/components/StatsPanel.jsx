@@ -42,37 +42,39 @@ function StatCard({ icon: Icon, label, value, subtext, color = 'blue' }) {
 /**
  * Statistics panel showing system metrics.
  */
-export default function StatsPanel({ data }) {
+export default function StatsPanel({ data, trafficData }) {
+  const resolvedData = trafficData ?? data ?? {};
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         icon={Car}
         label="Total Vehicles"
-        value={data.total}
+        value={resolvedData.total ?? 0}
         subtext="In view"
         color="blue"
       />
       <StatCard
         icon={BarChart3}
         label="Congestion"
-        value={data.congestion}
+        value={resolvedData.congestion ?? 'LOW'}
         subtext="Current level"
         color={
-          data.congestion === 'LOW' ? 'green' :
-          data.congestion === 'MEDIUM' ? 'orange' : 'orange'
+          resolvedData.congestion === 'LOW' ? 'green' :
+          resolvedData.congestion === 'MEDIUM' ? 'orange' : 'orange'
         }
       />
       <StatCard
         icon={Timer}
         label="FPS"
-        value={data.fps || '--'}
+        value={resolvedData.fps || '--'}
         subtext="Processing rate"
         color="purple"
       />
       <StatCard
         icon={Zap}
         label="Frames"
-        value={data.frame_count?.toLocaleString() || '--'}
+        value={resolvedData.frame_count?.toLocaleString() || '--'}
         subtext="Processed"
         color="green"
       />

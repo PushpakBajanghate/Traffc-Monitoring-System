@@ -135,7 +135,9 @@ function FlowIndicator({ direction, intensity }) {
 /**
  * Advanced Statistics Dashboard with real-time metrics.
  */
-export default function AdvancedStats({ data }) {
+export default function AdvancedStats({ data, trafficData }) {
+  const resolvedData = trafficData ?? data ?? {};
+
   // Generate historical data for sparklines
   const [history, setHistory] = useState({
     vehicles: [],
@@ -146,12 +148,12 @@ export default function AdvancedStats({ data }) {
   
   useEffect(() => {
     setHistory(prev => ({
-      vehicles: [...prev.vehicles.slice(-19), data.total || 0],
-      congestion: [...prev.congestion.slice(-19), data.density_score || 0],
-      speed: [...prev.speed.slice(-19), data.avg_speed || 0],
-      flow: [...prev.flow.slice(-19), data.flow_rate || 0]
+      vehicles: [...prev.vehicles.slice(-19), resolvedData.total || 0],
+      congestion: [...prev.congestion.slice(-19), resolvedData.density_score || 0],
+      speed: [...prev.speed.slice(-19), resolvedData.avg_speed || 0],
+      flow: [...prev.flow.slice(-19), resolvedData.flow_rate || 0]
     }));
-  }, [data.total, data.density_score, data.avg_speed, data.flow_rate]);
+  }, [resolvedData.total, resolvedData.density_score, resolvedData.avg_speed, resolvedData.flow_rate]);
   
   // Calculate trends
   const getTrend = (arr) => {
@@ -180,7 +182,7 @@ export default function AdvancedStats({ data }) {
         <MetricCard
           icon={Activity}
           label="Total Vehicles"
-          value={data.total || 0}
+          value={resolvedData.total || 0}
           trend={getTrend(history.vehicles)}
           change={getChange(history.vehicles)}
           color="blue"
@@ -189,17 +191,17 @@ export default function AdvancedStats({ data }) {
         <MetricCard
           icon={Gauge}
           label="Density Score"
-          value={Math.round(data.density_score || 0)}
+          value={Math.round(resolvedData.density_score || 0)}
           unit="%"
           trend={getTrend(history.congestion)}
           change={getChange(history.congestion)}
-          color={data.density_score > 70 ? 'red' : data.density_score > 40 ? 'yellow' : 'green'}
+          color={resolvedData.density_score > 70 ? 'red' : resolvedData.density_score > 40 ? 'yellow' : 'green'}
           sparklineData={history.congestion}
         />
         <MetricCard
           icon={Wind}
           label="Avg Speed"
-          value={Math.round(data.avg_speed || 0)}
+          value={Math.round(resolvedData.avg_speed || 0)}
           unit="km/h"
           trend={getTrend(history.speed)}
           change={getChange(history.speed)}
@@ -209,7 +211,7 @@ export default function AdvancedStats({ data }) {
         <MetricCard
           icon={BarChart3}
           label="Flow Rate"
-          value={(data.flow_rate || 0).toFixed(1)}
+          value={(resolvedData.flow_rate || 0).toFixed(1)}
           unit="/min"
           trend={getTrend(history.flow)}
           change={getChange(history.flow)}
@@ -223,18 +225,18 @@ export default function AdvancedStats({ data }) {
         {/* Peak hour indicator */}
         <div className={`
           rounded-xl p-2 sm:p-4 border
-          ${data.peak_hour 
+          ${resolvedData.peak_hour 
             ? 'bg-orange-500/20 border-orange-500/30' 
             : 'bg-gray-500/20 border-gray-500/30'}
         `}>
           <div className="flex items-center gap-1 sm:gap-2">
-            <Clock size={14} className={`sm:w-[18px] sm:h-[18px] ${data.peak_hour ? 'text-orange-400' : 'text-gray-400'}`} />
+            <Clock size={14} className={`sm:w-[18px] sm:h-[18px] ${resolvedData.peak_hour ? 'text-orange-400' : 'text-gray-400'}`} />
             <span className="text-xs sm:text-sm font-medium">
-              {data.peak_hour ? 'Peak' : 'Off-Peak'}
+              {resolvedData.peak_hour ? 'Peak' : 'Off-Peak'}
             </span>
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 hidden sm:block">
-            {data.peak_hour ? 'Heavy traffic expected' : 'Normal conditions'}
+            {resolvedData.peak_hour ? 'Heavy traffic expected' : 'Normal conditions'}
           </div>
         </div>
         
@@ -242,33 +244,33 @@ export default function AdvancedStats({ data }) {
         <div className="bg-gray-500/20 border border-gray-500/30 rounded-xl p-2 sm:p-4">
           <div className="flex items-center gap-1 sm:gap-2">
             <Activity size={14} className="sm:w-[18px] sm:h-[18px] text-blue-400" />
-            <span className="text-xs sm:text-sm font-medium">{data.fps || 0} FPS</span>
+            <span className="text-xs sm:text-sm font-medium">{resolvedData.fps || 0} FPS</span>
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 hidden sm:block">
-            Frame: {(data.frame_count || 0).toLocaleString()}
+            Frame: {(resolvedData.frame_count || 0).toLocaleString()}
           </div>
         </div>
         
         {/* Emergency count */}
         <div className={`
           rounded-xl p-2 sm:p-4 border
-          ${(data.ambulances > 0 || data.firebrigade > 0) 
+          ${(resolvedData.ambulances > 0 || resolvedData.firebrigade > 0) 
             ? 'bg-red-500/20 border-red-500/30' 
             : 'bg-gray-500/20 border-gray-500/30'}
         `}>
           <div className="flex items-center gap-1 sm:gap-2">
             <AlertTriangle 
               size={14} 
-              className={`sm:w-[18px] sm:h-[18px] ${(data.ambulances > 0 || data.firebrigade > 0) 
+              className={`sm:w-[18px] sm:h-[18px] ${(resolvedData.ambulances > 0 || resolvedData.firebrigade > 0) 
                 ? 'text-red-400 animate-pulse' 
                 : 'text-gray-400'}`} 
             />
             <span className="text-xs sm:text-sm font-medium">
-              <span className="hidden sm:inline">Emergency:</span> {(data.ambulances || 0) + (data.firebrigade || 0)}
+              <span className="hidden sm:inline">Emergency:</span> {(resolvedData.ambulances || 0) + (resolvedData.firebrigade || 0)}
             </span>
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 hidden sm:block">
-            🚑 {data.ambulances || 0} | 🚒 {data.firebrigade || 0}
+            🚑 {resolvedData.ambulances || 0} | 🚒 {resolvedData.firebrigade || 0}
           </div>
         </div>
         
@@ -279,7 +281,7 @@ export default function AdvancedStats({ data }) {
             <span className="text-xs sm:text-sm font-medium">Updated</span>
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 font-mono">
-            {data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : '--:--:--'}
+            {resolvedData.timestamp ? new Date(resolvedData.timestamp).toLocaleTimeString() : '--:--:--'}
           </div>
         </div>
       </div>

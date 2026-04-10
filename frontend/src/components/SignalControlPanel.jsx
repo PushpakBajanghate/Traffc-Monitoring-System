@@ -95,11 +95,12 @@ function LaneCard({ laneId, count, signalTime, isPriority, maxCount, threshold =
  * Signal Control Panel — displays lane-wise vehicle counts,
  * adaptive signal timing allocations, and priority lane info.
  */
-export default function SignalControlPanel({ data }) {
-  const laneCounts = data.lane_counts || {};
-  const signalTimes = data.signal_times || {};
-  const priorityLane = data.priority_lane || null;
-  const signalMode = data.signal_mode || 'NORMAL';
+export default function SignalControlPanel({ data, trafficData }) {
+  const resolvedData = trafficData ?? data ?? {};
+  const laneCounts = resolvedData.lane_counts || {};
+  const signalTimes = resolvedData.signal_times || {};
+  const priorityLane = resolvedData.priority_lane || null;
+  const signalMode = resolvedData.signal_mode || 'NORMAL';
 
   const laneIds = useMemo(() => Object.keys(laneCounts), [laneCounts]);
   const maxCount = useMemo(() => Math.max(...Object.values(laneCounts), 1), [laneCounts]);

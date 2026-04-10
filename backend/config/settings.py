@@ -89,6 +89,75 @@ class Settings(BaseSettings):
     ENABLE_HEATMAP: bool = True
     STREAM_VIDEO_FEED: bool = True
     VIDEO_QUALITY: str = "high"  # low, medium, high
+
+    # =====================================================================
+    # Intersection Network Configuration
+    # =====================================================================
+    INTERSECTIONS: list = [
+        {
+            "id": "variety_square",
+            "name": "Variety Square",
+            "lat": 21.1458,
+            "lng": 79.0882,
+            "neighbors": ["sitabuldi", "medical_square"],
+        },
+        {
+            "id": "sitabuldi",
+            "name": "Sitabuldi",
+            "lat": 21.1433,
+            "lng": 79.0849,
+            "neighbors": ["variety_square", "dharampeth"],
+        },
+        {
+            "id": "dharampeth",
+            "name": "Dharampeth",
+            "lat": 21.1391,
+            "lng": 79.0567,
+            "neighbors": ["sitabuldi", "shankar_nagar"],
+        },
+        {
+            "id": "sadar",
+            "name": "Sadar",
+            "lat": 21.1550,
+            "lng": 79.0880,
+            "neighbors": ["medical_square"],
+        },
+        {
+            "id": "medical_square",
+            "name": "Medical Square",
+            "lat": 21.1520,
+            "lng": 79.0920,
+            "neighbors": ["variety_square", "sadar"],
+        },
+        {
+            "id": "shankar_nagar",
+            "name": "Shankar Nagar",
+            "lat": 21.1350,
+            "lng": 79.0850,
+            "neighbors": ["dharampeth"],
+        },
+    ]
+
+    # =====================================================================
+    # Solar Power Configuration
+    # =====================================================================
+    SOLAR_PANEL_CAPACITY_W: float = 500.0     # Watts per panel
+    BATTERY_CAPACITY_WH: float = 2000.0        # Watt-hours battery storage
+    LOW_BATTERY_THRESHOLD: float = 20.0        # Percentage
+    CRITICAL_BATTERY_THRESHOLD: float = 5.0    # Percentage
+
+    # =====================================================================
+    # Environmental Sensor Configuration
+    # =====================================================================
+    AQI_ALERT_THRESHOLD: int = 150             # AQI above this triggers alert
+    NOISE_ALERT_THRESHOLD: float = 80.0        # dB above this triggers alert
+    ENVIRONMENTAL_UPDATE_INTERVAL: float = 5.0  # seconds
+
+    # =====================================================================
+    # Alert System Configuration
+    # =====================================================================
+    CONGESTION_ALERT_THRESHOLD: int = 25       # Total vehicles to trigger alert
+    ALERT_MAX_AGE_SECONDS: float = 300.0       # Auto-clear alerts after 5 min
     
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent

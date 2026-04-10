@@ -1,112 +1,82 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Bell, AlertTriangle, Info, CheckCircle, XCircle, 
   ChevronDown, ChevronUp, Clock, MapPin, Volume2,
-  X, Filter, Trash2
+  X, Trash2, Sun, Wind, Zap, Activity
 } from 'lucide-react';
 
-// Sample alerts generator
-const generateAlerts = () => {
-  const types = ['emergency', 'warning', 'info', 'success'];
-  const locations = ['Variety Square', 'Sitabuldi', 'Medical Square', 'Shankar Nagar', 'Dharampeth'];
-  const messages = {
-    emergency: [
-      'Ambulance detected - Priority mode activated',
-      'Fire brigade approaching - Clear route',
-      'Accident reported - Traffic diversion needed',
-      'VIP movement detected'
-    ],
-    warning: [
-      'High congestion detected',
-      'Traffic signal malfunction',
-      'Road work in progress',
-      'Unusual traffic pattern detected'
-    ],
-    info: [
-      'Peak hour traffic expected',
-      'Weather advisory - Light rain',
-      'Event nearby - Increased traffic',
-      'New camera online'
-    ],
-    success: [
-      'Traffic flow normalized',
-      'Emergency cleared',
-      'Signal timing optimized',
-      'Congestion reduced'
-    ]
-  };
+/**
+ * Maps backend alert types to display categories
+ */
+const getAlertCategory = (type) => {
+  switch (type) {
+    case 'EMERGENCY_DETECTED':
+    case 'GREEN_CORRIDOR_ACTIVE':
+    case 'SOLAR_FAILURE':
+      return 'emergency';
+    case 'CONGESTION_THRESHOLD':
+    case 'SIGNAL_OVERLOAD':
+    case 'SOLAR_LOW':
+    case 'AIR_QUALITY_POOR':
+    case 'NOISE_HIGH':
+      return 'warning';
+    case 'EMERGENCY_CLEARED':
+    case 'SYSTEM_STATUS':
+      return 'info';
+    default:
+      return 'info';
+  }
+};
 
-  return Array.from({ length: 8 }, (_, i) => {
-    const type = types[Math.floor(Math.random() * types.length)];
-    return {
-      id: i + 1,
-      type,
-      message: messages[type][Math.floor(Math.random() * messages[type].length)],
-      location: locations[Math.floor(Math.random() * locations.length)],
-      timestamp: new Date(Date.now() - Math.random() * 3600000),
-      read: Math.random() > 0.5
-    };
-  }).sort((a, b) => b.timestamp - a.timestamp);
+const getAlertIcon = (type) => {
+  switch (type) {
+    case 'SOLAR_LOW':
+    case 'SOLAR_FAILURE':
+      return Sun;
+    case 'AIR_QUALITY_POOR':
+    case 'NOISE_HIGH':
+      return Wind;
+    case 'SIGNAL_OVERLOAD':
+    case 'GREEN_CORRIDOR_ACTIVE':
+      return Zap;
+    case 'CONGESTION_THRESHOLD':
+      return Activity;
+    default:
+      return AlertTriangle;
+  }
 };
 
 /**
  * Single alert item component
  */
-function AlertItem({ alert, onDismiss, onMarkRead }) {
+function AlertItem({ alert, onDismiss }) {
   const [expanded, setExpanded] = useState(false);
+  const category = getAlertCategory(alert.type);
+  const AlertIcon = getAlertIcon(alert.type);
 
-  const getAlertStyles = (type) => {
-    switch (type) {
-      case 'emergency':
-        return {
-          bg: 'bg-red-500/10',
-          border: 'border-red-500/30',
-          icon: AlertTriangle,
-          iconColor: 'text-red-400',
-          badge: 'bg-red-500'
-        };
-      case 'warning':
-        return {
-          bg: 'bg-yellow-500/10',
-          border: 'border-yellow-500/30',
-          icon: AlertTriangle,
-          iconColor: 'text-yellow-400',
-          badge: 'bg-yellow-500'
-        };
-      case 'info':
-        return {
-          bg: 'bg-blue-500/10',
-          border: 'border-blue-500/30',
-          icon: Info,
-          iconColor: 'text-blue-400',
-          badge: 'bg-blue-500'
-        };
-      case 'success':
-        return {
-          bg: 'bg-green-500/10',
-          border: 'border-green-500/30',
-          icon: CheckCircle,
-          iconColor: 'text-green-400',
-          badge: 'bg-green-500'
-        };
-      default:
-        return {
-          bg: 'bg-gray-500/10',
-          border: 'border-gray-500/30',
-          icon: Info,
-          iconColor: 'text-gray-400',
-          badge: 'bg-gray-500'
-        };
-    }
+  const styles = {
+    emergency: {
+      bg: 'bg-red-500/10', border: 'border-red-500/30',
+      iconColor: 'text-red-400', badge: 'bg-red-500',
+    },
+    warning: {
+      bg: 'bg-yellow-500/10', border: 'border-yellow-500/30',
+      iconColor: 'text-yellow-400', badge: 'bg-yellow-500',
+    },
+    info: {
+      bg: 'bg-blue-500/10', border: 'border-blue-500/30',
+      iconColor: 'text-blue-400', badge: 'bg-blue-500',
+    },
+  }[category] || {
+    bg: 'bg-gray-500/10', border: 'border-gray-500/30',
+    iconColor: 'text-gray-400', badge: 'bg-gray-500',
   };
 
-  const styles = getAlertStyles(alert.type);
-  const Icon = styles.icon;
-
-  const formatTime = (date) => {
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp * 1000);
     const now = new Date();
     const diff = (now - date) / 1000;
-    
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -114,42 +84,40 @@ function AlertItem({ alert, onDismiss, onMarkRead }) {
   };
 
   return (
-    <div 
-      className={`
-        ${styles.bg} ${styles.border} border rounded-lg p-2 sm:p-3 
-        transition-all duration-200 cursor-pointer
-        ${!alert.read ? 'ring-1 ring-blue-500/50' : ''}
-        hover:bg-opacity-20
-      `}
-      onClick={() => { setExpanded(!expanded); onMarkRead(alert.id); }}
+    <div
+      className={`${styles.bg} ${styles.border} border rounded-lg p-2 sm:p-3 transition-all duration-200 cursor-pointer hover:bg-opacity-20`}
+      onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-start gap-2 sm:gap-3">
         <div className={`p-1 sm:p-1.5 rounded-lg ${styles.bg} flex-shrink-0`}>
-          <Icon size={14} className={`${styles.iconColor} sm:w-4 sm:h-4`} />
+          <AlertIcon size={14} className={`${styles.iconColor} sm:w-4 sm:h-4`} />
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 flex-wrap">
             <span className={`px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase rounded ${styles.badge} text-white`}>
-              {alert.type}
+              {alert.severity || category}
             </span>
-            {!alert.read && (
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></span>
-            )}
+            <span className="text-[9px] text-gray-600 uppercase">{alert.type?.replace(/_/g, ' ')}</span>
           </div>
           
-          <p className="text-xs sm:text-sm text-white font-medium truncate">
+          <p className="text-xs sm:text-sm text-white font-medium">
             {alert.message}
           </p>
           
           <div className="flex items-center gap-2 sm:gap-3 mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-500">
-            <span className="flex items-center gap-0.5 sm:gap-1 truncate">
-              <MapPin size={10} className="flex-shrink-0" />
-              <span className="truncate">{alert.location}</span>
-            </span>
-            <span className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            {alert.zone_id && (
+              <span className="flex items-center gap-0.5 sm:gap-1 truncate">
+                <MapPin size={10} className="flex-shrink-0" />
+                <span className="truncate capitalize">{alert.zone_id.replace(/_/g, ' ')}</span>
+              </span>
+            )}
+            {alert.source && (
+              <span className="text-gray-600 capitalize">{alert.source}</span>
+            )}
+            <span className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 ml-auto">
               <Clock size={10} />
-              {formatTime(alert.timestamp)}
+              {alert.timestamp_iso ? formatTime(alert.timestamp) : (alert.age_seconds ? `${Math.round(alert.age_seconds)}s ago` : '')}
             </span>
           </div>
         </div>
@@ -162,20 +130,17 @@ function AlertItem({ alert, onDismiss, onMarkRead }) {
         </button>
       </div>
 
-      {/* Expanded content */}
-      {expanded && (
+      {expanded && alert.metadata && Object.keys(alert.metadata).length > 0 && (
         <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-700">
-          <p className="text-[10px] sm:text-xs text-gray-400 mb-2">
-            Full details about this alert would appear here, including any recommended actions,
-            related camera feeds, and historical context.
-          </p>
-          <div className="flex gap-1.5 sm:gap-2">
-            <button className="px-2 sm:px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-[10px] sm:text-xs hover:bg-blue-500/30 transition-colors">
-              View Camera
-            </button>
-            <button className="px-2 sm:px-3 py-1 bg-gray-500/20 text-gray-400 rounded text-[10px] sm:text-xs hover:bg-gray-500/30 transition-colors">
-              Show on Map
-            </button>
+          <div className="grid grid-cols-2 gap-1 text-[10px] sm:text-xs">
+            {Object.entries(alert.metadata).map(([key, value]) => (
+              <div key={key} className="bg-gray-800/50 rounded p-1.5">
+                <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}:</span>
+                <span className="ml-1 text-gray-300">
+                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -184,64 +149,57 @@ function AlertItem({ alert, onDismiss, onMarkRead }) {
 }
 
 /**
- * Alerts Panel - Shows real-time traffic alerts and notifications
+ * Alerts Panel - Shows real-time alerts from the centralized alert system
  */
-export default function AlertsPanel({ emergencyMode }) {
-  const [alerts, setAlerts] = useState([]);
+export default function AlertsPanel({ emergencyMode, alerts: liveAlerts = [], alertSummary = {} }) {
+  const [localAlerts, setLocalAlerts] = useState([]);
   const [filter, setFilter] = useState('all');
   const [showPanel, setShowPanel] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [dismissedIds, setDismissedIds] = useState(new Set());
 
-  // Initialize alerts
+  // Merge live backend alerts with any local state
   useEffect(() => {
-    setAlerts(generateAlerts());
-    
-    // Add new alert periodically
-    const interval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        const newAlert = generateAlerts()[0];
-        newAlert.id = Date.now();
-        newAlert.timestamp = new Date();
-        newAlert.read = false;
-        setAlerts(prev => [newAlert, ...prev.slice(0, 19)]);
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
+    if (liveAlerts && liveAlerts.length > 0) {
+      setLocalAlerts(liveAlerts);
+    }
+  }, [liveAlerts]);
 
   // Add emergency alert when mode changes
   useEffect(() => {
     if (emergencyMode) {
       const emergencyAlert = {
-        id: Date.now(),
-        type: 'emergency',
-        message: 'Emergency vehicle detected - Priority mode activated',
-        location: 'System Wide',
-        timestamp: new Date(),
-        read: false
+        id: `local-${Date.now()}`,
+        type: 'EMERGENCY_DETECTED',
+        severity: 'CRITICAL',
+        message: 'Emergency vehicle detected — Priority mode activated',
+        zone_id: 'System Wide',
+        source: 'local',
+        timestamp: Date.now() / 1000,
+        age_seconds: 0,
+        metadata: {},
       };
-      setAlerts(prev => [emergencyAlert, ...prev]);
+      setLocalAlerts(prev => [emergencyAlert, ...prev]);
     }
   }, [emergencyMode]);
 
   const handleDismiss = (id) => {
-    setAlerts(prev => prev.filter(a => a.id !== id));
-  };
-
-  const handleMarkRead = (id) => {
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, read: true } : a));
+    setDismissedIds(prev => new Set([...prev, id]));
   };
 
   const handleClearAll = () => {
-    setAlerts([]);
+    setDismissedIds(new Set(localAlerts.map(a => a.id)));
   };
 
-  const filteredAlerts = filter === 'all' 
-    ? alerts 
-    : alerts.filter(a => a.type === filter);
+  const visibleAlerts = useMemo(() => {
+    let filtered = localAlerts.filter(a => !dismissedIds.has(a.id));
+    if (filter !== 'all') {
+      filtered = filtered.filter(a => getAlertCategory(a.type) === filter);
+    }
+    return filtered;
+  }, [localAlerts, filter, dismissedIds]);
 
-  const unreadCount = alerts.filter(a => !a.read).length;
+  const severityCounts = alertSummary?.severity_breakdown || {};
 
   return (
     <div className="card h-full flex flex-col">
@@ -250,13 +208,19 @@ export default function AlertsPanel({ emergencyMode }) {
         <div className="flex items-center gap-2 min-w-0">
           <Bell size={18} className="text-blue-400 flex-shrink-0 sm:w-5 sm:h-5" />
           <h3 className="font-semibold text-white text-sm sm:text-base truncate">Alerts</h3>
-          {unreadCount > 0 && (
+          {localAlerts.length > 0 && (
             <span className="px-1.5 sm:px-2 py-0.5 bg-blue-500 text-white text-[10px] sm:text-xs font-bold rounded-full flex-shrink-0">
-              {unreadCount}
+              {localAlerts.length - dismissedIds.size}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          {/* Severity summary badges */}
+          {severityCounts.CRITICAL > 0 && (
+            <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] rounded-full font-bold">
+              {severityCounts.CRITICAL} critical
+            </span>
+          )}
           <button 
             onClick={() => setSoundEnabled(!soundEnabled)}
             className={`p-1 sm:p-1.5 rounded-lg transition-colors ${soundEnabled ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-white'}`}
@@ -277,7 +241,7 @@ export default function AlertsPanel({ emergencyMode }) {
         <>
           {/* Filters */}
           <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 overflow-x-auto pb-2 scrollbar-thin">
-            {['all', 'emergency', 'warning', 'info', 'success'].map(type => (
+            {['all', 'emergency', 'warning', 'info'].map(type => (
               <button
                 key={type}
                 onClick={() => setFilter(type)}
@@ -291,7 +255,7 @@ export default function AlertsPanel({ emergencyMode }) {
               </button>
             ))}
             
-            {alerts.length > 0 && (
+            {visibleAlerts.length > 0 && (
               <button
                 onClick={handleClearAll}
                 className="ml-auto px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors flex items-center gap-1 whitespace-nowrap"
@@ -304,13 +268,12 @@ export default function AlertsPanel({ emergencyMode }) {
 
           {/* Alerts list */}
           <div className="flex-1 overflow-y-auto space-y-1.5 sm:space-y-2 pr-1">
-            {filteredAlerts.length > 0 ? (
-              filteredAlerts.map(alert => (
+            {visibleAlerts.length > 0 ? (
+              visibleAlerts.map(alert => (
                 <AlertItem
                   key={alert.id}
                   alert={alert}
                   onDismiss={handleDismiss}
-                  onMarkRead={handleMarkRead}
                 />
               ))
             ) : (

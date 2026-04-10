@@ -31,9 +31,9 @@ pip install -r requirements.txt -q
 :: Start the backend
 echo.
 echo Starting Traffic Monitoring Backend...
-echo Server will be available at: http://localhost:8000
-echo WebSocket endpoint: ws://localhost:8000/ws/traffic
+echo Server will be available at: http://127.0.0.1:8000
+echo WebSocket endpoint: ws://127.0.0.1:8000/ws/traffic
 echo.
-python main.py
+python -m uvicorn api.app:app --host 127.0.0.1 --port 8000 --lifespan off
 
 pause

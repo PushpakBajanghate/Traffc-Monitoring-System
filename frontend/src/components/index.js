@@ -11,3 +11,8 @@ export { default as InteractiveTrafficMap } from './InteractiveTrafficMap';
 export { default as AlertsPanel } from './AlertsPanel';
 export { default as TrafficPrediction } from './TrafficPrediction';
 export { default as SignalControlPanel } from './SignalControlPanel';
+export { default as SolarPowerPanel } from './SolarPowerPanel';
+export { default as EnvironmentalPanel } from './EnvironmentalPanel';
+export { default as SurveillanceModule } from './SurveillanceModule';
+export { default as IntersectionDetailPanel } from './IntersectionDetailPanel';
+

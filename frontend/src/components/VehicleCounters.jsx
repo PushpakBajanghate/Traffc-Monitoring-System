@@ -53,17 +53,19 @@ function VehicleCounterCard({ type, count, icon: Icon, color, isEmergency = fals
 /**
  * Grid of all vehicle counters - Responsive
  */
-export default function VehicleCounters({ data }) {
+export default function VehicleCounters({ data, trafficData }) {
+  const resolvedData = trafficData ?? data ?? {};
+
   const vehicles = [
-    { type: 'cars', count: data.cars, icon: Car, color: '#22c55e' },
-    { type: 'bikes', count: data.bikes, icon: Bike, color: '#eab308' },
-    { type: 'buses', count: data.buses, icon: Bus, color: '#f97316' },
-    { type: 'trucks', count: data.trucks, icon: Truck, color: '#a855f7' },
+    { type: 'cars', count: resolvedData.cars ?? 0, icon: Car, color: '#22c55e' },
+    { type: 'bikes', count: resolvedData.bikes ?? 0, icon: Bike, color: '#eab308' },
+    { type: 'buses', count: resolvedData.buses ?? 0, icon: Bus, color: '#f97316' },
+    { type: 'trucks', count: resolvedData.trucks ?? 0, icon: Truck, color: '#a855f7' },
   ];
 
   const emergencyVehicles = [
-    { type: 'ambulance', count: data.ambulances, icon: Siren, color: '#ef4444', isEmergency: true },
-    { type: 'fire', count: data.firebrigade, icon: Flame, color: '#ef4444', isEmergency: true },
+    { type: 'ambulance', count: resolvedData.ambulances ?? 0, icon: Siren, color: '#ef4444', isEmergency: true },
+    { type: 'fire', count: resolvedData.firebrigade ?? 0, icon: Flame, color: '#ef4444', isEmergency: true },
   ];
 
   return (

@@ -1,12 +1,15 @@
 """
 Main Traffic Processing Pipeline.
 Orchestrates all processing components for real-time traffic analysis.
+Integrates: detection, tracking, counting, congestion, emergency,
+signal control, solar power, environmental sensors, alert system,
+and intersection network management.
 """
 
 import asyncio
 import time
 from typing import Dict, Optional, Callable, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from loguru import logger
 
@@ -18,6 +21,10 @@ from core.congestion import CongestionComputer, CongestionStatus
 from core.emergency import EmergencyPrioritySystem, EmergencyStatus
 from core.roi import draw_rois, LANE_ROIS
 from core.signal_control import calculate_signal_times, get_priority_lane, get_signal_status
+from core.solar_power import SolarPowerManager
+from core.environmental_sensors import EnvironmentalSensorSimulator
+from core.alert_system import AlertSystem
+from core.intersection_manager import IntersectionNetwork
 from config.settings import settings
 
 
@@ -56,7 +63,7 @@ class TrafficState:
     timestamp: str
     frame_count: int
     fps: float
-    # New advanced fields
+    # Advanced fields
     vehicles: List[Dict] = None
     avg_speed: float = 0.0
     flow_rate: float = 0.0
@@ -70,6 +77,13 @@ class TrafficState:
     signal_mode: str = "NORMAL"
     # Base64 encoded frame for live video streaming
     frame: str = ""
+    # === NEW: Intersection network, solar, environmental, alerts ===
+    intersections: List[Dict] = None
+    green_corridor: List[Dict] = None
+    solar_data: Dict = None
+    environmental_data: Dict = None
+    alerts: List[Dict] = None
+    alert_summary: Dict = None
     
     def __post_init__(self):
         if self.vehicles is None:
@@ -80,6 +94,18 @@ class TrafficState:
             self.lane_counts = {}
         if self.signal_times is None:
             self.signal_times = {}
+        if self.intersections is None:
+            self.intersections = []
+        if self.green_corridor is None:
+            self.green_corridor = []
+        if self.solar_data is None:
+            self.solar_data = {}
+        if self.environmental_data is None:
+            self.environmental_data = {}
+        if self.alerts is None:
+            self.alerts = []
+        if self.alert_summary is None:
+            self.alert_summary = {}
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
@@ -114,6 +140,13 @@ class TrafficState:
             "priority_lane": self.priority_lane,
             "signal_mode": self.signal_mode,
             "frame": self.frame,
+            # NEW: Network, solar, environment, alerts
+            "intersections": self.intersections,
+            "green_corridor": self.green_corridor,
+            "solar_data": self.solar_data,
+            "environmental_data": self.environmental_data,
+            "alerts": self.alerts,
+            "alert_summary": self.alert_summary,
         }
 
 
@@ -130,7 +163,7 @@ class TrafficPipeline:
         Args:
             video_source: Optional video source override
         """
-        # Initialize components
+        # Core components
         self.video_capture = VideoCapture(video_source)
         self.detector = VehicleDetector()
         self.tracker = MultiObjectTracker()
@@ -138,12 +171,21 @@ class TrafficPipeline:
         self.congestion = CongestionComputer()
         self.emergency_system = EmergencyPrioritySystem()
         
+        # NEW: Extended subsystems
+        self.intersection_network = IntersectionNetwork(settings.INTERSECTIONS)
+        self.solar_manager = SolarPowerManager(settings.INTERSECTIONS)
+        self.env_sensors = EnvironmentalSensorSimulator(
+            [i["id"] for i in settings.INTERSECTIONS]
+        )
+        self.alert_system = AlertSystem()
+        
         # State
         self.is_running = False
         self.current_state: Optional[TrafficState] = None
         self.frame_count = 0
         self.start_time = 0
         self.last_state_update = 0
+        self.last_env_update = 0
         
         # Callbacks for state updates
         self.on_state_update: Optional[Callable[[TrafficState], None]] = None
@@ -220,23 +262,77 @@ class TrafficPipeline:
                 signal_times = calculate_signal_times(lane_counts)
                 priority_lane = get_priority_lane(lane_counts)
                 
+                # --- NEW: Update intersection network ---
+                network_state = self.intersection_network.update(
+                    primary_lane_counts=lane_counts,
+                    primary_congestion=congestion_status.level.value,
+                    primary_vehicle_count=counts.total_with_emergency,
+                    primary_emergency=emergency_status.emergency_mode,
+                    primary_emergency_type=emergency_status.emergency_type,
+                )
+                
+                # --- NEW: Update solar power ---
+                solar_data = self.solar_manager.update_all()
+                
+                # --- NEW: Update environmental sensors (throttled) ---
+                env_data = {}
+                if time.time() - self.last_env_update >= settings.ENVIRONMENTAL_UPDATE_INTERVAL:
+                    zone_counts = {
+                        i["id"]: sum(
+                            self.intersection_network.intersections[i["id"]].lane_counts.values()
+                        ) if i["id"] in self.intersection_network.intersections else 10
+                        for i in settings.INTERSECTIONS
+                    }
+                    env_data = self.env_sensors.compute(zone_counts)
+                    self.last_env_update = time.time()
+                elif self.env_sensors.last_readings:
+                    env_data = {
+                        zid: r.to_dict() for zid, r in self.env_sensors.last_readings.items()
+                    }
+                
+                # --- NEW: Aggregate alerts ---
+                self.alert_system.ingest_alerts(
+                    self.solar_manager.get_all_alerts(), source="solar"
+                )
+                self.alert_system.ingest_alerts(
+                    self.env_sensors.get_alerts(
+                        aqi_threshold=settings.AQI_ALERT_THRESHOLD,
+                        noise_threshold=settings.NOISE_ALERT_THRESHOLD,
+                    ),
+                    source="environmental",
+                )
+                self.alert_system.check_traffic_thresholds(
+                    total_vehicles=counts.total_with_emergency,
+                    congestion_level=congestion_status.level.value,
+                    lane_counts=lane_counts,
+                    congestion_alert_threshold=settings.CONGESTION_ALERT_THRESHOLD,
+                )
+                if emergency_status.emergency_mode:
+                    self.alert_system.add_alert(
+                        alert_type="EMERGENCY_DETECTED",
+                        severity="CRITICAL",
+                        message=emergency_status.message,
+                        source="emergency",
+                    )
+                self.alert_system.clear_old_alerts(settings.ALERT_MAX_AGE_SECONDS)
+                
                 # Draw ROIs and encode frame to base64
                 drawn_frame = draw_rois(frame.copy(), lane_counts, signal_times, priority_lane)
                 import cv2, base64
-                # Downscale slightly for performance if needed, or compress
-                # We'll stick to original size but use higher compression
                 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
                 _, buffer = cv2.imencode('.jpg', drawn_frame, encode_param)
                 frame_b64 = base64.b64encode(buffer).decode('utf-8')
-                logger.info(f"Encoded frame length: {len(frame_b64)}")
                 
-                # Create state snapshot (with lane data and base64 frame)
+                # Create state snapshot
                 self.current_state = self._create_state(
                     counts, congestion_status, emergency_status,
                     lane_counts=lane_counts,
                     signal_times=signal_times,
                     priority_lane=priority_lane,
                     frame_b64=frame_b64,
+                    network_state=network_state,
+                    solar_data=solar_data,
+                    env_data=env_data,
                 )
                 
                 # Trigger callback if set
@@ -268,21 +364,12 @@ class TrafficPipeline:
                       lane_counts: Dict = None,
                       signal_times: Dict = None,
                       priority_lane: str = None,
-                      frame_b64: str = "") -> TrafficState:
+                      frame_b64: str = "",
+                      network_state: Dict = None,
+                      solar_data: Dict = None,
+                      env_data: Dict = None) -> TrafficState:
         """
         Create a complete traffic state snapshot.
-        
-        Args:
-            counts: Current vehicle counts
-            congestion: Current congestion status
-            emergency: Current emergency status
-            lane_counts: Vehicle counts per ROI lane
-            signal_times: Calculated signal times per lane
-            priority_lane: Lane with highest vehicle count
-            frame_b64: Base64 encoded JPEG frame
-            
-        Returns:
-            TrafficState object
         """
         # Get vehicle positions for visualization
         vehicles = []
@@ -332,6 +419,10 @@ class TrafficPipeline:
             elif overloaded > 0:
                 signal_mode = "ADAPTIVE"
         
+        # Extract network data
+        intersections_list = network_state.get("intersections", []) if network_state else []
+        green_corridors = network_state.get("active_corridors", []) if network_state else []
+        
         return TrafficState(
             cars=counts.cars,
             bikes=counts.bikes,
@@ -363,6 +454,13 @@ class TrafficPipeline:
             priority_lane=priority_lane,
             signal_mode=signal_mode,
             frame=frame_b64,
+            # NEW: Extended data
+            intersections=intersections_list,
+            green_corridor=green_corridors,
+            solar_data=solar_data or {},
+            environmental_data=env_data or {},
+            alerts=self.alert_system.get_active_alerts(limit=20),
+            alert_summary=self.alert_system.get_alert_summary(),
         )
     
     def _get_direction(self, velocity: tuple) -> str:
@@ -396,7 +494,8 @@ class TrafficPipeline:
             },
             "counter": self.counter.get_statistics(),
             "congestion": self.congestion.get_statistics(),
-            "emergency": self.emergency_system.get_statistics()
+            "emergency": self.emergency_system.get_statistics(),
+            "alert_summary": self.alert_system.get_alert_summary(),
         }
 
 
