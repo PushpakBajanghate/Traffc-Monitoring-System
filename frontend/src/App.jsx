@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Header, VehicleCounters, CongestionBadge, EmergencyPanel,
-  InteractiveTrafficMap, AlertsPanel, StatsPanel, LiveCameraFeed,
+  InteractiveTrafficMap, GoogleTrafficMap, AlertsPanel, StatsPanel, LiveCameraFeed,
   SignalControlPanel, TrafficPrediction, AdvancedStats, CameraModal,
   SolarPowerPanel, EnvironmentalPanel, SurveillanceModule, IntersectionDetailPanel
 } from './components';
@@ -119,9 +119,9 @@ function App() {
 
             {/* Middle Row: Map + Signal Control + Alerts */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              {/* Map */}
+              {/* Map — Google Maps on Dashboard (falls back gracefully if no API key) */}
               <div className="lg:col-span-5 h-[350px] sm:h-[400px] lg:h-[450px]">
-                <InteractiveTrafficMap
+                <GoogleTrafficMap
                   trafficData={trafficData}
                   onLocationSelect={setSelectedIntersection}
                   selectedLocation={selectedIntersection}
