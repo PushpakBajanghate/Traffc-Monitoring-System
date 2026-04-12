@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Header, VehicleCounters, CongestionBadge, EmergencyPanel,
-  InteractiveTrafficMap, AlertsPanel, StatsPanel, LiveCameraFeed,
+  TrafficMap, AlertsPanel, StatsPanel, LiveCameraFeed,
   SignalControlPanel, TrafficPrediction, AdvancedStats, CameraModal,
   SolarPowerPanel, EnvironmentalPanel, SurveillanceModule, IntersectionDetailPanel
 } from './components';
@@ -121,7 +121,7 @@ function App() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               {/* Map */}
               <div className="lg:col-span-5 h-[350px] sm:h-[400px] lg:h-[450px]">
-                <InteractiveTrafficMap
+                <TrafficMap
                   trafficData={trafficData}
                   onLocationSelect={setSelectedIntersection}
                   selectedLocation={selectedIntersection}
@@ -178,7 +178,7 @@ function App() {
         {activeTab === 'map' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-3 h-[calc(100vh-180px)]">
-              <InteractiveTrafficMap
+              <TrafficMap
                 trafficData={trafficData}
                 onLocationSelect={setSelectedIntersection}
                 selectedLocation={selectedIntersection}

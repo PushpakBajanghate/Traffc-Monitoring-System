@@ -11,7 +11,7 @@ from loguru import logger
 # ====================================================================
 # Signal Timing Constants
 # ====================================================================
-THRESHOLD = 15       # Vehicles above this count trigger extended timing
+THRESHOLD = 3       # Vehicles above this count trigger extended timing
 BASE_TIME = 20       # Minimum green signal time (seconds)
 MAX_TIME = 60        # Maximum green signal time (seconds)
 TOTAL_CYCLE = 120    # Total signal cycle budget (seconds)

@@ -183,11 +183,10 @@ When an ambulance or fire brigade is detected:
 
 ## 🎨 Dashboard Features
 
-- **Live Vehicle Counters**: Cars, Bikes, Buses, Trucks, Ambulances, Fire Brigade
-- **Total Vehicle Count**: Real-time total
-- **Congestion Status Badge**: Dynamic color-coded status
-- **Emergency Alert Panel**: Animated priority alerts
-- **Live Map**: Interactive Leaflet.js map with status markers
+- **Live Video YOLO Feed**: Real-time processed camera feed streaming directly to the dashboard detailing exact lane ROIs and shifting colored bounding boxes tracking cars, bikes, and buses.
+- **Dynamic Signal Adjustment**: Intelligent algorithms directly monitor vehicle counts inside road lane bounds and dynamically shift intersection "Green Time" allocation to alleviate traffic jams.
+- **Interactive Google Maps**: Upgraded robust integration with Google Maps mapping markers dynamically displaying congestion color states, vehicle counts, and current signal priority times.
+- **Advanced API Performance**: Multi-threaded FastAPI backend prevents YOLO frame analysis from blocking WebSocket streams.
 - **System Statistics**: FPS, frame count, connection status
 
 ## ⚙️ Configuration

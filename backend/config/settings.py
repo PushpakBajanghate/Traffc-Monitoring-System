@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     
     # Video Source Configuration
     # Can be: webcam index (0, 1), RTSP URL, or video file path
-    VIDEO_SOURCE: str = "demo"  # "demo" uses built-in demo mode
+    VIDEO_SOURCE: str = "demo"  # Defaulting to downloaded traffic video
     VIDEO_FPS: int = 30
     FRAME_WIDTH: int = 1280
     FRAME_HEIGHT: int = 720

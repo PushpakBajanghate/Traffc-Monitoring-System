@@ -50,7 +50,7 @@ def main():
         "api.app:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=settings.DEBUG,
+        reload=False,
         log_level="info"
     )
 

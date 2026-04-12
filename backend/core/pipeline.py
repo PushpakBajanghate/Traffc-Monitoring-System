@@ -242,8 +242,8 @@ class TrafficPipeline:
                 
                 self.frame_count += 1
                 
-                # Run detection
-                detections = self.detector.detect(frame)
+                # Run detection non-blockingly to prevent starving the event loop
+                detections = await asyncio.to_thread(self.detector.detect, frame)
                 
                 # Update tracking
                 tracks = self.tracker.update(detections)
@@ -318,6 +318,10 @@ class TrafficPipeline:
                 
                 # Draw ROIs and encode frame to base64
                 drawn_frame = draw_rois(frame.copy(), lane_counts, signal_times, priority_lane)
+                
+                # DRAW THE DETECTED VEHICLES!
+                drawn_frame = self.detector.draw_detections(drawn_frame, detections)
+                
                 import cv2, base64
                 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
                 _, buffer = cv2.imencode('.jpg', drawn_frame, encode_param)
@@ -351,8 +355,8 @@ class TrafficPipeline:
                 # Control frame rate
                 target_interval = 1.0 / settings.VIDEO_FPS
                 elapsed = time.time() - process_start
-                if elapsed < target_interval:
-                    await asyncio.sleep(target_interval - elapsed)
+                sleep_time = max(0.01, target_interval - elapsed)
+                await asyncio.sleep(sleep_time)
                     
             except Exception as e:
                 logger.error(f"Processing error: {e}")

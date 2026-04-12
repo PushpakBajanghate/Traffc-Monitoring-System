@@ -72,7 +72,7 @@ class VehicleDetector:
         self.confidence = settings.YOLO_CONFIDENCE
         self.iou_threshold = settings.YOLO_IOU_THRESHOLD
         self._initialized = False
-        self._simulation_mode = not YOLO_AVAILABLE
+        self._simulation_mode = (not YOLO_AVAILABLE) or (settings.VIDEO_SOURCE == "demo")
         
         # Detection counters
         self.total_detections = 0
@@ -129,9 +129,12 @@ class VehicleDetector:
         base_time = time.time()
         variation = np.sin(base_time * 0.5) * 0.3 + 0.7  # Oscillating traffic
         
-        # Generate random number of each vehicle type
-        num_cars = int(random.randint(3, 8) * variation)
-        num_bikes = int(random.randint(1, 4) * variation)
+        # Generate dummy coordinates matching LANE_ROIS
+        lanes_x = [(120, 300), (470, 650), (820, 1000)]
+        
+        # Generate random number of each vehicle type to exceed threshold
+        num_cars = int(random.randint(8, 20) * variation)
+        num_bikes = int(random.randint(3, 8) * variation)
         num_buses = int(random.randint(0, 2) * variation)
         num_trucks = int(random.randint(0, 2) * variation)
         
@@ -141,12 +144,13 @@ class VehicleDetector:
         
         track_id = 1
         
-        # Generate car detections
+        # Generate car detections inside lanes
         for i in range(num_cars):
-            x1 = random.randint(50, w - 150)
-            y1 = random.randint(h // 4, h * 3 // 4 - 80)
-            x2 = x1 + random.randint(80, 120)
-            y2 = y1 + random.randint(50, 80)
+            lx = random.choice(lanes_x)
+            x1 = random.randint(lx[0], lx[1] - 80)
+            y1 = random.randint(320, 500)
+            x2 = x1 + random.randint(60, 100)
+            y2 = y1 + random.randint(40, 70)
             
             detections.append(Detection(
                 bbox=(x1, y1, x2, y2),
@@ -157,12 +161,13 @@ class VehicleDetector:
             ))
             track_id += 1
         
-        # Generate bike detections
+        # Generate bike detections inside lanes
         for i in range(num_bikes):
-            x1 = random.randint(50, w - 100)
-            y1 = random.randint(h // 4, h * 3 // 4 - 60)
-            x2 = x1 + random.randint(40, 60)
-            y2 = y1 + random.randint(40, 60)
+            lx = random.choice(lanes_x)
+            x1 = random.randint(lx[0], lx[1] - 40)
+            y1 = random.randint(320, 500)
+            x2 = x1 + random.randint(30, 50)
+            y2 = y1 + random.randint(30, 50)
             
             detections.append(Detection(
                 bbox=(x1, y1, x2, y2),
@@ -175,10 +180,11 @@ class VehicleDetector:
         
         # Generate bus detections
         for i in range(num_buses):
-            x1 = random.randint(50, w - 200)
-            y1 = random.randint(h // 4, h * 3 // 4 - 100)
-            x2 = x1 + random.randint(150, 200)
-            y2 = y1 + random.randint(80, 100)
+            lx = random.choice(lanes_x)
+            x1 = random.randint(lx[0], lx[1] - 150)
+            y1 = random.randint(300, 450)
+            x2 = x1 + random.randint(100, 150)
+            y2 = y1 + random.randint(70, 90)
             
             detections.append(Detection(
                 bbox=(x1, y1, x2, y2),
@@ -191,10 +197,11 @@ class VehicleDetector:
         
         # Generate truck detections
         for i in range(num_trucks):
-            x1 = random.randint(50, w - 180)
-            y1 = random.randint(h // 4, h * 3 // 4 - 90)
-            x2 = x1 + random.randint(120, 180)
-            y2 = y1 + random.randint(70, 90)
+            lx = random.choice(lanes_x)
+            x1 = random.randint(lx[0], lx[1] - 120)
+            y1 = random.randint(300, 450)
+            x2 = x1 + random.randint(100, 130)
+            y2 = y1 + random.randint(60, 80)
             
             detections.append(Detection(
                 bbox=(x1, y1, x2, y2),
