@@ -1,7 +1,9 @@
 """
-Adaptive Traffic Signal Control Module.
+Adaptive Traffic Signal Control Module v2.0.0
+--------------------------------------------------
 Dynamically allocates green signal timing based on vehicle
 accumulation inside defined lane ROI regions.
+System Architecture: Lane-level proportional timing with threshold bonuses.
 """
 
 from typing import Dict, Optional

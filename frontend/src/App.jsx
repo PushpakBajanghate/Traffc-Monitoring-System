@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 
 /**
- * Main App - AI Smart Traffic Management System
+ * Main App - AI Smart Traffic Management System v2.0.0
+ * ------------------------------------------------------------
  * Tabbed layout: Dashboard, Map, Solar, Environment, Surveillance, Alerts
+ * Orchestrates real-time data flow from WebSocket to components.
  */
 function App() {
   const { trafficData, connectionStatus, lastUpdate } = useTrafficData();
