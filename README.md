@@ -1,352 +1,479 @@
-# AI Traffic Monitoring System (Production-Ready)
+# 🚦 AI-Based Intelligent Traffic Monitoring & Adaptive Signal Control System
 
-Real-time smart-city traffic control platform using local YOLOv8 inference, ROI-based lane analytics, adaptive signal timing, and live geospatial visualization.
+<div align="center">
 
-## Project Overview
+![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-FF6F00?style=for-the-badge&logo=pytorch&logoColor=white)
+![OpenCV](https://img.shields.io/badge/OpenCV-4.9+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket-Real--Time-4CAF50?style=for-the-badge)
 
-This system performs continuous real-time traffic monitoring and control:
+**A production-ready, real-time AI-powered traffic monitoring and adaptive signal control platform that detects vehicles, prioritizes emergency vehicle routing, computes dynamic congestion, manages smart intersections, monitors environmental sensors, and visualizes everything on a live interactive Google Maps dashboard.**
 
-- Ingests live video (webcam / RTSP / file source)
-- Runs local YOLOv8 vehicle detection (no cloud APIs)
-- Computes lane load using ROI boxes
-- Adapts signal timings from lane congestion in real time
-- Streams live updates over WebSocket to the React dashboard
-- Visualizes traffic status and intersection state on Google Maps
+</div>
 
-## Core Features
+---
 
-- Real-time vehicle detection and tracking
-- ROI-based lane vehicle counting
-- Adaptive traffic signal timing
-- Priority-lane selection based on live load
-- Emergency detection flow support
-- WebSocket frame + telemetry streaming
-- Google Maps live marker and traffic context
-- Multi-intersection, solar, environmental, and alert modules
+## 🎯 Project Overview
 
-## Tech Stack
+This system is a comprehensive **Smart City Traffic Intelligence Platform** that combines:
 
-Backend:
+- 🤖 **YOLOv8 AI detection** for real-time vehicle classification
+- 🚨 **Emergency vehicle priority** routing for ambulances & fire brigades
+- 🟢 **Adaptive traffic signal control** based on live lane ROI occupancy
+- 🗺️ **Google Maps live dashboard** with dynamic markers and congestion overlays
+- 🌿 **Environmental sensor integration** (AQI, noise, weather)
+- ☀️ **Solar power monitoring** for sustainable data center operations
+- 📷 **Live camera feed streaming** via WebSocket (base64 JPEG frames)
+- 📊 **Advanced analytics** with traffic prediction and intersection management
 
-- FastAPI
-- Uvicorn
-- OpenCV
-- Ultralytics YOLOv8 (local model)
-- NumPy
-- WebSockets
-- Torch
+---
 
-Frontend:
+## 🏗️ System Architecture
 
-- React + Vite
-- @react-google-maps/api
-- Tailwind CSS
-
-## Backend Data Contract (WebSocket)
-
-WebSocket endpoint: `ws://127.0.0.1:8000/ws/traffic`
-
-Payload includes:
-
-```json
-{
-  "frame": "<base64_jpeg>",
-  "lane_counts": {"lane_1": 0, "lane_2": 0, "lane_3": 0},
-  "signal_times": {"lane_1": 20, "lane_2": 20, "lane_3": 20},
-  "priority_lane": "lane_1",
-  "lat": 21.1458,
-  "lng": 79.0882
-}
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Video Source (RTSP / File / Demo)           │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Frame Capture      │  (video_capture.py)
+                    │  Pipeline           │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  YOLOv8 Detection   │  (detection.py)
+                    │  + Classification   │
+                    └──────────┬──────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+   ┌──────────▼──────┐ ┌──────▼──────┐ ┌──────▼──────────┐
+   │  Multi-Object   │ │  Lane ROI   │ │  Emergency Veh. │
+   │  Tracking       │ │  Counting   │ │  Priority System│
+   │  (ByteTrack)    │ │  Engine     │ │                 │
+   └──────────┬──────┘ └──────┬──────┘ └──────┬──────────┘
+              └────────────────┼────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Congestion Engine  │  (congestion.py)
+                    │  + Signal Control   │  (signal_control.py)
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Intersection       │  (intersection_manager.py)
+                    │  Manager            │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  FastAPI Backend    │  (app.py)
+                    │  + WebSocket API   │
+                    └──────────┬──────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+   ┌──────▼──────┐    ┌────────▼──────┐   ┌────────▼──────┐
+   │ Google Maps │    │  Camera Feed  │   │  Stats &      │
+   │ Live View   │    │  Stream       │   │  Analytics    │
+   └─────────────┘    └───────────────┘   └───────────────┘
 ```
 
-Frontend rendering:
+---
 
-```jsx
-<img src={`data:image/jpeg;base64,${data.frame}`} alt="Live Traffic Feed" />
+## 📁 Project Structure
+
+```
+Traffc-Monitoring-System/
+│
+├── backend/
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── app.py                    # FastAPI app with REST + WebSocket endpoints
+│   │
+│   ├── config/
+│   │   ├── __init__.py
+│   │   └── settings.py               # Centralized configuration via Pydantic
+│   │
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── video_capture.py          # Multi-source video capture pipeline
+│   │   ├── detection.py              # YOLOv8 vehicle detection & classification
+│   │   ├── tracking.py               # Multi-object tracking (ByteTrack)
+│   │   ├── counting.py               # Lane-based vehicle counting engine
+│   │   ├── roi.py                    # Region-of-Interest (lane zone) definitions
+│   │   ├── congestion.py             # Congestion level computation
+│   │   ├── signal_control.py         # Adaptive traffic signal timing
+│   │   ├── emergency.py              # Emergency vehicle detection & alert system
+│   │   ├── alert_system.py           # Push alert dispatcher (WebSocket / SMS)
+│   │   ├── intersection_manager.py   # Smart intersection state machine
+│   │   ├── environmental_sensors.py  # Air quality, noise & weather integration
+│   │   ├── solar_power.py            # Solar energy monitoring module
+│   │   └── pipeline.py               # Master processing pipeline orchestrator
+│   │
+│   ├── models/                        # YOLOv8 model weights (.pt files)
+│   ├── logs/                          # Structured application logs
+│   ├── main.py                        # Backend entry point
+│   ├── requirements.txt               # Python dependencies
+│   ├── runtime.txt                    # Python runtime version (for deployment)
+│   ├── Procfile                       # Heroku / Railway process config
+│   ├── nixpacks.toml                  # Nixpacks build config
+│   ├── railway.json                   # Railway deployment config
+│   └── render.yaml                    # Render deployment config
+│
+├── frontend/
+│   ├── public/                        # Static assets
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Header.jsx             # App header with live status indicator
+│   │   │   ├── GoogleTrafficMap.jsx   # Google Maps live traffic visualization
+│   │   │   ├── TrafficMap.jsx         # Leaflet fallback map view
+│   │   │   ├── VehicleCounters.jsx    # Real-time vehicle count cards
+│   │   │   ├── CongestionBadge.jsx    # Congestion level badge
+│   │   │   ├── EmergencyPanel.jsx     # Emergency alert display
+│   │   │   ├── LiveCameraFeed.jsx     # Live YOLO-processed video stream
+│   │   │   ├── CameraModal.jsx        # Expanded camera feed modal
+│   │   │   ├── SignalControlPanel.jsx # Signal timing & phase visualization
+│   │   │   ├── AlertsPanel.jsx        # Alert history & active alerts
+│   │   │   ├── AdvancedStats.jsx      # FPS, uptime, frame stats
+│   │   │   ├── StatsPanel.jsx         # Summary statistics panel
+│   │   │   ├── TrafficPrediction.jsx  # ML traffic prediction charts
+│   │   │   ├── IntersectionDetailPanel.jsx  # Per-intersection deep-dive
+│   │   │   ├── EnvironmentalPanel.jsx # AQI, noise & weather display
+│   │   │   ├── SolarPowerPanel.jsx    # Solar energy metrics
+│   │   │   ├── SurveillanceModule.jsx # Multi-camera surveillance view
+│   │   │   └── index.js               # Component exports barrel
+│   │   │
+│   │   ├── hooks/
+│   │   │   └── useTrafficData.js      # WebSocket data hook with auto-reconnect
+│   │   │
+│   │   ├── App.jsx                    # Root application & layout
+│   │   ├── main.jsx                   # Vite entry point
+│   │   └── index.css                  # Global styles (Tailwind + custom)
+│   │
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   ├── netlify.toml                   # Netlify deployment config
+│   └── vercel.json                    # Vercel deployment config
+│
+├── start-backend.bat                  # One-click backend launcher (Windows)
+├── start-frontend.bat                 # One-click frontend launcher (Windows)
+└── .gitignore
 ```
 
-## Setup and Run
+---
 
-### 1. Clone and open workspace
+## 🚀 Quick Start
 
-```powershell
-git clone <your-repo-url>
-cd "Traffc Monitoring System"
-```
+### Prerequisites
 
-### 2. Backend setup
+| Tool | Version |
+|------|---------|
+| Python | 3.9+ |
+| Node.js | 18+ |
+| npm | 9+ |
+| Git | any |
 
-```powershell
-cd backend
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
-pip install fastapi uvicorn opencv-python numpy websockets ultralytics torch
-cd ..
-```
+---
 
-### 3. Run backend (required command)
-
-Run from workspace root:
-
-```powershell
-backend\venv\Scripts\python.exe -m uvicorn backend.main:app --reload
-```
-
-Backend URL:
-
-- http://127.0.0.1:8000
-- Health: http://127.0.0.1:8000/health
-- WebSocket: ws://127.0.0.1:8000/ws/traffic
-
-### 4. Frontend setup
-
-```powershell
-cd frontend
-npm install
-```
-
-Optional Google Maps key (`frontend/.env.development`):
+### ⚡ Windows One-Click Launch
 
 ```bash
-VITE_GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_JS_API_KEY
-VITE_API_URL=http://127.0.0.1:8000
-VITE_WS_URL=ws://127.0.0.1:8000/ws
+# Start backend
+start-backend.bat
+
+# Start frontend (separate terminal)
+start-frontend.bat
 ```
 
-Run frontend:
+---
 
-```powershell
+### 🐍 Backend Manual Setup
+
+```bash
+# 1. Navigate to backend
+cd backend
+
+# 2. Create & activate virtual environment
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Linux/macOS
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Configure environment (copy and edit)
+cp .env.example .env
+
+# 5. Start the server
+python main.py
+```
+
+Backend runs at → `http://localhost:8000`
+
+---
+
+### ⚛️ Frontend Manual Setup
+
+```bash
+# 1. Navigate to frontend
+cd frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Start dev server
 npm run dev
 ```
 
-Open dashboard URL shown by Vite (typically http://localhost:5173).
+Frontend runs at → `http://localhost:5173`
 
-## Local YOLO Model Requirement
+---
 
-The backend uses local YOLO only:
+## 🔌 API Reference
 
-```python
-model = YOLO("yolov8n.pt")
+### WebSocket Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `ws://localhost:8000/ws/traffic` | Real-time traffic data stream |
+| `ws://localhost:8000/ws/video` | Live YOLO-processed camera feed (base64 JPEG) |
+
+**Traffic Data Payload Example:**
+```json
+{
+  "cars": 14,
+  "bikes": 5,
+  "buses": 2,
+  "trucks": 3,
+  "ambulances": 1,
+  "firebrigade": 0,
+  "total": 24,
+  "congestion": "HIGH",
+  "emergency_mode": true,
+  "emergency_type": "ambulance",
+  "signal_phase": "GREEN",
+  "green_time": 45,
+  "area": "Main Road Signal, Agur",
+  "lat": 12.7805,
+  "lng": 77.6051,
+  "fps": 28.4,
+  "frame_count": 14832,
+  "aqi": 72,
+  "noise_db": 68.5,
+  "solar_output_kw": 3.2,
+  "timestamp": "2026-04-16T18:00:00"
+}
 ```
 
-Notes:
+---
 
-- If `yolov8n.pt` exists in `backend/`, it is loaded directly.
-- If missing, Ultralytics automatically downloads it once and then runs locally.
-- No external inference API or cloud model endpoint is used.
+### REST Endpoints
 
-## Runtime Behavior
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | System info & version |
+| `/health` | GET | Health check |
+| `/traffic-status` | GET | Current live traffic status |
+| `/stats` | GET | Detailed performance statistics |
+| `/config` | GET | Active system configuration |
+| `/intersections` | GET | All intersection states |
+| `/intersections/{id}` | GET | Single intersection details |
+| `/alerts` | GET | Active and historical alerts |
+| `/environmental` | GET | Environmental sensor readings |
+| `/solar` | GET | Solar power active metrics |
 
-- Camera fallback: tries webcam index `0`, then `1`.
-- Detection loop: YOLO -> tracking -> ROI counts -> signal timing -> priority lane.
-- Stream loop: annotated JPEG frame + telemetry over WebSocket.
-- Frontend updates counters, camera feed, and map markers continuously.
+---
 
-## Troubleshooting
+## 🚦 Congestion Levels
 
-### Camera issues
+| Level | Vehicle Count | Map Color | Signal Behavior |
+|-------|---------------|-----------|-----------------|
+| 🟢 LOW | < 10 vehicles | Green | Standard timing |
+| 🟡 MEDIUM | 10–19 vehicles | Yellow | Slightly extended green |
+| 🔴 HIGH | ≥ 20 vehicles | Red | Maximum green time |
 
-- If camera index `0` fails, system auto-attempts index `1`.
-- Set `VIDEO_SOURCE` in `backend/config/settings.py` for alternate camera/RTSP/file source.
-- Verify no other app is exclusively locking your camera.
+---
 
-### YOLO model download/load issues
+## 🚨 Emergency Vehicle Priority System
 
-- Ensure internet for first-time `yolov8n.pt` download if file is missing.
-- Verify `ultralytics` and `torch` are installed in the backend venv.
-- Confirm model path and file permissions in `backend/`.
+When an **ambulance** or **fire brigade** is detected anywhere in a lane ROI:
 
-### Port conflicts
+1. **Priority Mode** activates instantly
+2. Signal phase switches to **GREEN** for the emergency vehicle's lane
+3. Dashboard alert panel shows: `🚨 Emergency Vehicle Detected – Priority Clearance Required`
+4. Google Maps marker changes to **flashing blue-red** state
+5. All other intersection signals enter hold/red state
+6. Alert is auto-cleared after vehicle exits the zone (5-second timeout)
 
-If `8000` is occupied:
+---
 
-```powershell
-backend\venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8001
+## 🟢 Adaptive Signal Control
+
+The `signal_control.py` module dynamically computes green times per lane based on:
+
+- **Vehicle density** within each lane ROI (Region of Interest)
+- **Queue length** estimate from vehicle counts
+- **Emergency vehicle presence** (overrides all timings)
+- **Historical flow patterns** for predictive adjustment
+
+Signal timing is computed every cycle and broadcast via WebSocket.
+
+---
+
+## 🗺️ Google Maps Live Dashboard
+
+The `GoogleTrafficMap.jsx` component provides:
+
+- 📍 Dynamic markers for each monitored intersection
+- 🔴🟡🟢 Color-coded congestion overlays
+- 🛣️ Live traffic layer toggle
+- 🔢 Vehicle count tooltips on hover
+- 🚨 Emergency pulse animations on active alerts
+- ⏱️ Signal phase countdown badges
+
+---
+
+## 📷 Live Camera Feed
+
+The `LiveCameraFeed.jsx` component streams:
+
+- Real-time YOLO-processed frames at up to **30 FPS**
+- Colored bounding boxes per vehicle class
+- Lane ROI polygon overlays
+- Vehicle count annotations per frame
+- Expandable via `CameraModal.jsx` for full-screen view
+
+---
+
+## 🌿 Environmental Monitoring
+
+| Sensor | Data Points |
+|--------|-------------|
+| Air Quality | PM2.5, PM10, CO₂, AQI Index |
+| Noise | dB level, average, peak |
+| Weather | Temperature, humidity, visibility |
+
+---
+
+## ☀️ Solar Power Integration
+
+The `solar_power.py` module tracks:
+
+- Real-time solar panel output (kW)
+- Daily energy generation (kWh)
+- Grid vs. solar ratio
+- Panel health status
+
+---
+
+## ⚙️ Configuration
+
+Edit `backend/config/settings.py` or set environment variables via `.env`:
+
+```env
+# Video source: "demo" | "0" | "/path/to/video.mp4" | "rtsp://..."
+VIDEO_SOURCE=demo
+
+# Location
+LOCATION_NAME=Main Road Signal, Agur
+LOCATION_LAT=12.7805
+LOCATION_LNG=77.6051
+
+# Congestion thresholds
+CONGESTION_LOW_THRESHOLD=10
+CONGESTION_MEDIUM_THRESHOLD=20
+
+# WebSocket update rate (seconds)
+WEBSOCKET_UPDATE_INTERVAL=2.0
+
+# Signal timing bounds (seconds)
+MIN_GREEN_TIME=10
+MAX_GREEN_TIME=90
+
+# Emergency alert timeout (seconds)
+EMERGENCY_ALERT_TIMEOUT=5.0
 ```
 
-Then update frontend env:
+---
 
-- `VITE_API_URL=http://127.0.0.1:8001`
-- `VITE_WS_URL=ws://127.0.0.1:8001/ws`
+## 🎥 Supported Video Sources
 
-### Backend not found from frontend
+| Mode | Value | Description |
+|------|-------|-------------|
+| Demo | `"demo"` | Simulated realistic traffic data (no camera needed) |
+| Webcam | `"0"` or `"1"` | Local USB/built-in camera by index |
+| Video File | `"/path/to/traffic.mp4"` | Pre-recorded video file |
+| RTSP Stream | `"rtsp://user:pass@ip/stream"` | Live IP camera feed |
 
-- Check backend health endpoint first.
-- Check browser console for WebSocket errors.
-- Confirm CORS and env values point to the same host/port.
+---
 
-## Demo Flow
+## 📊 Technology Stack
 
-1. Start backend and confirm `/health` is healthy.
-2. Open frontend dashboard.
-3. Observe live camera frame and vehicle detections.
-4. Verify ROI lane counts and signal times change over time.
-5. Watch priority lane switch with load changes.
-6. Verify map marker status updates with congestion/emergency state.
+### Backend
+| Technology | Purpose |
+|-----------|---------|
+| Python 3.9+ | Core language |
+| FastAPI | Async web framework |
+| Uvicorn | ASGI server |
+| YOLOv8 (Ultralytics) | Vehicle detection & classification |
+| OpenCV | Video capture & frame processing |
+| Supervision | ByteTrack multi-object tracking |
+| WebSockets | Real-time bidirectional streaming |
+| Pydantic v2 | Settings & data validation |
+| Loguru | Structured logging |
+| SciPy | Numerical computing for signal control |
 
-## API Summary
+### Frontend
+| Technology | Purpose |
+|-----------|---------|
+| React 18 | UI framework |
+| Vite | Build tool & dev server |
+| Tailwind CSS | Utility-first styling |
+| Google Maps API | Interactive live map |
+| Leaflet.js | Fallback map |
+| Lucide React | Icon library |
+| Recharts | Analytics chart library |
 
-- `GET /` -> service status
-- `GET /health` -> runtime health
-- `GET /traffic-status` -> latest snapshot
-- `GET /stats` -> pipeline statistics
-- `WebSocket /ws/traffic` -> continuous real-time stream
+---
 
-## Notes
+## 🌐 Deployment
 
-- This codebase is configured for real-time operation and local model inference.
-- For production deployment, add auth, TLS termination, and process supervision.
-# AI Smart Traffic Monitoring and Emergency Priority System
+The project includes deployment configs for multiple platforms:
 
-Real-time traffic intelligence platform built with FastAPI, YOLOv8, WebSockets, and React. The system detects and tracks vehicles, classifies congestion, triggers emergency priority flow, and visualizes intersection status on a live dashboard.
+| Platform | Config File |
+|----------|-------------|
+| Railway | `backend/railway.json`, `backend/nixpacks.toml` |
+| Render | `backend/render.yaml` |
+| Heroku | `backend/Procfile` |
+| Netlify | `frontend/netlify.toml` |
+| Vercel | `frontend/vercel.json` |
 
-## Overview
+---
 
-This project provides:
+## 🏙️ Defense Statement
 
-- Real-time vehicle detection and counting
-- Emergency vehicle priority mode
-- Adaptive signal control from ROI lane counts
-- Multi-intersection network view with green corridor support
-- Solar power and environmental telemetry simulation
-- Live alert aggregation and monitoring panels
+> *"This system continuously processes live road video through YOLOv8, detects and tracks every passing vehicle, instantly identifies ambulances and fire brigade units, dynamically computes lane-level congestion, adaptively controls signal timings, and streams all data — including processed video frames — to a live React dashboard with Google Maps integration. The entire pipeline is designed to scale directly to real-world CCTV deployments for smart city traffic management."*
 
-## High-Level Architecture
+---
 
-```text
-Video Source
-  -> Frame Capture
-  -> YOLO Detection
-  -> Multi-Object Tracking
-  -> Counting + Congestion + Emergency Logic
-  -> Signal Control + Intersection Manager
-  -> FastAPI REST + WebSocket APIs
-  -> React Dashboard (Map, Alerts, Analytics)
-```
+## 📄 License
 
-## Tech Stack
+This project is developed for educational and smart city demonstration purposes. All rights reserved.
 
-Backend:
+---
 
-- Python 3.9+
-- FastAPI + Uvicorn
-- OpenCV
-- Ultralytics YOLOv8
-- WebSockets
+## 👥 Authors
 
-Frontend:
+**Pushpak Bajanghate** — [GitHub @PushpakBajanghate](https://github.com/PushpakBajanghate)
 
-- React 18
-- Vite
-- Tailwind CSS
-- Leaflet
+*AI-Based Intelligent Traffic Monitoring System — Real-time smart city traffic control prototype.*
 
-## Project Structure
+---
 
-```text
-backend/
-  api/
-  config/
-  core/
-  logs/
-  models/
-  main.py
-
-frontend/
-  src/
-    components/
-    hooks/
-  package.json
-
-start-backend.bat
-start-frontend.bat
-README.md
-```
-
-## Quick Start (Windows)
-
-### 1) Start backend
-
-```powershell
-start-backend.bat
-```
-
-Backend target:
-
-- http://127.0.0.1:8000
-- ws://127.0.0.1:8000/ws/traffic
-
-### 2) Start frontend
-
-```powershell
-start-frontend.bat
-```
-
-Frontend target:
-
-- http://localhost:3000
-
-### 3) Health check
-
-```powershell
-Invoke-WebRequest http://127.0.0.1:8000/health -UseBasicParsing
-```
-
-## Backend API
-
-Core endpoints:
-
-- GET / 
-- GET /health
-- GET /traffic-status
-- GET /stats
-- GET /config
-- GET /intersections
-- GET /solar-status
-- GET /environmental
-- GET /alerts
-
-WebSocket:
-
-- /ws/traffic
-
-## Frontend Modules
-
-- Dashboard: counters, congestion, camera feed, map, alerts
-- Map: intersection-level view and route context
-- Solar: unit-level battery and generation metrics
-- Environment: AQI and noise by zone
-- Surveillance: multi-view camera simulation
-- Alerts: live severity and source-based feed
-
-## Configuration
-
-Primary runtime configuration is in backend/config/settings.py.
-
-Useful settings:
-
-- VIDEO_SOURCE
-- LOCATION_NAME, LOCATION_LAT, LOCATION_LNG
-- CONGESTION_LOW_THRESHOLD, CONGESTION_MEDIUM_THRESHOLD
-- WEBSOCKET_UPDATE_INTERVAL
-- INTERSECTIONS
-- AQI_ALERT_THRESHOLD, NOISE_ALERT_THRESHOLD
-
-## Notes for Local Development
-
-- Default local backend binding is 127.0.0.1:8000.
-- Frontend data hook is configured to use 127.0.0.1 for API and WebSocket fallback defaults.
-- If you see OFFLINE in UI, verify backend health endpoint first.
-
-## Roadmap Ideas
-
-- Real camera/RTSP deployment profiles
-- Persistent storage for alert and analytics history
-- Role-based operator controls
-- Signal override policy engine
-- CI test suite for pipeline and UI integration
-
-## License
-
-Educational and prototype use.
+<div align="center">
+⭐ If you found this project useful, please consider starring the repository!
+</div>

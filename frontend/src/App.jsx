@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Header, VehicleCounters, CongestionBadge, EmergencyPanel,
-  GoogleTrafficMap, AlertsPanel, StatsPanel, LiveCameraFeed,
+  TrafficMap, AlertsPanel, StatsPanel, LiveCameraFeed,
   SignalControlPanel, TrafficPrediction, AdvancedStats, CameraModal,
   SolarPowerPanel, EnvironmentalPanel, SurveillanceModule, IntersectionDetailPanel
 } from './components';
@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 
 /**
- * Main App - AI Smart Traffic Management System
+ * Main App - AI Smart Traffic Management System v2.0.0
+ * ------------------------------------------------------------
  * Tabbed layout: Dashboard, Map, Solar, Environment, Surveillance, Alerts
+ * Orchestrates real-time data flow from WebSocket to components.
  */
 function App() {
   const { trafficData, connectionStatus, lastUpdate } = useTrafficData();
@@ -119,9 +121,9 @@ function App() {
 
             {/* Middle Row: Map + Signal Control + Alerts */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              {/* Map — Google Maps on Dashboard (falls back gracefully if no API key) */}
+              {/* Map */}
               <div className="lg:col-span-5 h-[350px] sm:h-[400px] lg:h-[450px]">
-                <GoogleTrafficMap
+                <TrafficMap
                   trafficData={trafficData}
                   onLocationSelect={setSelectedIntersection}
                   selectedLocation={selectedIntersection}
@@ -178,7 +180,7 @@ function App() {
         {activeTab === 'map' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-3 h-[calc(100vh-180px)]">
-              <GoogleTrafficMap
+              <TrafficMap
                 trafficData={trafficData}
                 onLocationSelect={setSelectedIntersection}
                 selectedLocation={selectedIntersection}

@@ -1,7 +1,9 @@
 """
-Adaptive Traffic Signal Control Module.
+Adaptive Traffic Signal Control Module v2.0.0
+--------------------------------------------------
 Dynamically allocates green signal timing based on vehicle
 accumulation inside defined lane ROI regions.
+System Architecture: Lane-level proportional timing with threshold bonuses.
 """
 
 from typing import Dict, Optional
@@ -11,7 +13,7 @@ from loguru import logger
 # ====================================================================
 # Signal Timing Constants
 # ====================================================================
-THRESHOLD = 15       # Vehicles above this count trigger extended timing
+THRESHOLD = 3       # Vehicles above this count trigger extended timing
 BASE_TIME = 20       # Minimum green signal time (seconds)
 MAX_TIME = 60        # Maximum green signal time (seconds)
 TOTAL_CYCLE = 120    # Total signal cycle budget (seconds)

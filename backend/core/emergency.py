@@ -14,6 +14,11 @@ from core.tracking import Track
 from config.settings import settings
 
 
+# ----------------------------------------------------------------------------
+# System Configuration
+# ----------------------------------------------------------------------------
+logger.info("Emergency Priority System Module: v2.0.0 initializing...")
+
 class EmergencyType(Enum):
     """Types of emergency vehicles."""
     NONE = "none"

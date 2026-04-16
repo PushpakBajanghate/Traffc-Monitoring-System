@@ -228,160 +228,135 @@ class TrafficPipeline:
         await self.video_capture.stop()
         logger.info("Traffic pipeline stopped")
     
-    def _process_frame_sync(self, frame):
-        """
-        Synchronous frame processing — runs in a thread to avoid blocking
-        the asyncio event loop.
-
-        Performs: YOLO detection, tracking, counting, ROI analysis,
-        signal control, intersection network update, solar/environmental
-        updates, alert aggregation, and JPEG frame encoding.
-        """
-        import cv2
-        import base64
-
-        process_start = time.time()
-        self.frame_count += 1
-
-        # Run detection (YOLO — CPU intensive)
-        detections = self.detector.detect(frame)
-
-        # Update tracking
-        tracks = self.tracker.update(detections)
-
-        # Update counts
-        counts = self.counter.update(tracks)
-
-        # Compute congestion
-        congestion_status = self.congestion.compute(counts)
-
-        # Update emergency system
-        emergency_status = self.emergency_system.update(tracks, counts)
-
-        # ROI-based lane counting and signal control
-        lane_counts = count_vehicles_in_rois(detections)
-        signal_times = calculate_signal_times(lane_counts)
-        priority_lane = get_priority_lane(lane_counts)
-
-        # Update intersection network
-        network_state = self.intersection_network.update(
-            primary_lane_counts=lane_counts,
-            primary_congestion=congestion_status.level.value,
-            primary_vehicle_count=counts.total_with_emergency,
-            primary_emergency=emergency_status.emergency_mode,
-            primary_emergency_type=emergency_status.emergency_type,
-        )
-
-        # Update solar power
-        solar_data = self.solar_manager.update_all()
-
-        # Update environmental sensors (throttled)
-        env_data = {}
-        if time.time() - self.last_env_update >= settings.ENVIRONMENTAL_UPDATE_INTERVAL:
-            zone_counts = {
-                i["id"]: sum(
-                    self.intersection_network.intersections[i["id"]].lane_counts.values()
-                ) if i["id"] in self.intersection_network.intersections else 10
-                for i in settings.INTERSECTIONS
-            }
-            env_data = self.env_sensors.compute(zone_counts)
-            self.last_env_update = time.time()
-        elif self.env_sensors.last_readings:
-            env_data = {
-                zid: r.to_dict() for zid, r in self.env_sensors.last_readings.items()
-            }
-
-        # Aggregate alerts
-        self.alert_system.ingest_alerts(
-            self.solar_manager.get_all_alerts(), source="solar"
-        )
-        self.alert_system.ingest_alerts(
-            self.env_sensors.get_alerts(
-                aqi_threshold=settings.AQI_ALERT_THRESHOLD,
-                noise_threshold=settings.NOISE_ALERT_THRESHOLD,
-            ),
-            source="environmental",
-        )
-        self.alert_system.check_traffic_thresholds(
-            total_vehicles=counts.total_with_emergency,
-            congestion_level=congestion_status.level.value,
-            lane_counts=lane_counts,
-            congestion_alert_threshold=settings.CONGESTION_ALERT_THRESHOLD,
-        )
-        if emergency_status.emergency_mode:
-            self.alert_system.add_alert(
-                alert_type="EMERGENCY_DETECTED",
-                severity="CRITICAL",
-                message=emergency_status.message,
-                source="emergency",
-            )
-        self.alert_system.clear_old_alerts(settings.ALERT_MAX_AGE_SECONDS)
-
-        # Draw ROIs and encode frame to base64
-        drawn_frame = draw_rois(frame.copy(), lane_counts, signal_times, priority_lane)
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
-        _, buffer = cv2.imencode('.jpg', drawn_frame, encode_param)
-        frame_b64 = base64.b64encode(buffer).decode('utf-8')
-
-        # Calculate processing metrics
-        process_time = time.time() - process_start
-        self.processing_times.append(process_time)
-        if len(self.processing_times) > 100:
-            self.processing_times = self.processing_times[-100:]
-        self.avg_fps = 1.0 / (sum(self.processing_times) / len(self.processing_times))
-
-        return {
-            "counts": counts,
-            "congestion_status": congestion_status,
-            "emergency_status": emergency_status,
-            "lane_counts": lane_counts,
-            "signal_times": signal_times,
-            "priority_lane": priority_lane,
-            "frame_b64": frame_b64,
-            "network_state": network_state,
-            "solar_data": solar_data,
-            "env_data": env_data,
-            "process_time": process_time,
-        }
-
     async def _processing_loop(self):
-        """Main processing loop — offloads CPU work to a thread executor."""
+        """Main processing loop."""
         while self.is_running:
             try:
-                # Capture frame (lightweight async I/O)
+                process_start = time.time()
+                
+                # Capture frame
                 success, frame = await self.video_capture.read_frame()
                 if not success or frame is None:
                     await asyncio.sleep(0.01)
                     continue
                 
-                # Offload all CPU-intensive processing to a thread so the
-                # asyncio event loop stays responsive for HTTP / WebSocket
-                result = await asyncio.to_thread(self._process_frame_sync, frame)
+                self.frame_count += 1
                 
-                # Create state snapshot (lightweight)
+                # Run detection non-blockingly to prevent starving the event loop
+                detections = await asyncio.to_thread(self.detector.detect, frame)
+                
+                # Update tracking
+                tracks = self.tracker.update(detections)
+                
+                # Update counts
+                counts = self.counter.update(tracks)
+                
+                # Compute congestion
+                congestion_status = self.congestion.compute(counts)
+                
+                # Update emergency system
+                emergency_status = self.emergency_system.update(tracks, counts)
+                
+                # --- ROI-based lane counting and signal control ---
+                lane_counts = count_vehicles_in_rois(detections)
+                signal_times = calculate_signal_times(lane_counts)
+                priority_lane = get_priority_lane(lane_counts)
+                
+                # --- NEW: Update intersection network ---
+                network_state = self.intersection_network.update(
+                    primary_lane_counts=lane_counts,
+                    primary_congestion=congestion_status.level.value,
+                    primary_vehicle_count=counts.total_with_emergency,
+                    primary_emergency=emergency_status.emergency_mode,
+                    primary_emergency_type=emergency_status.emergency_type,
+                )
+                
+                # --- NEW: Update solar power ---
+                solar_data = self.solar_manager.update_all()
+                
+                # --- NEW: Update environmental sensors (throttled) ---
+                env_data = {}
+                if time.time() - self.last_env_update >= settings.ENVIRONMENTAL_UPDATE_INTERVAL:
+                    zone_counts = {
+                        i["id"]: sum(
+                            self.intersection_network.intersections[i["id"]].lane_counts.values()
+                        ) if i["id"] in self.intersection_network.intersections else 10
+                        for i in settings.INTERSECTIONS
+                    }
+                    env_data = self.env_sensors.compute(zone_counts)
+                    self.last_env_update = time.time()
+                elif self.env_sensors.last_readings:
+                    env_data = {
+                        zid: r.to_dict() for zid, r in self.env_sensors.last_readings.items()
+                    }
+                
+                # --- NEW: Aggregate alerts ---
+                self.alert_system.ingest_alerts(
+                    self.solar_manager.get_all_alerts(), source="solar"
+                )
+                self.alert_system.ingest_alerts(
+                    self.env_sensors.get_alerts(
+                        aqi_threshold=settings.AQI_ALERT_THRESHOLD,
+                        noise_threshold=settings.NOISE_ALERT_THRESHOLD,
+                    ),
+                    source="environmental",
+                )
+                self.alert_system.check_traffic_thresholds(
+                    total_vehicles=counts.total_with_emergency,
+                    congestion_level=congestion_status.level.value,
+                    lane_counts=lane_counts,
+                    congestion_alert_threshold=settings.CONGESTION_ALERT_THRESHOLD,
+                )
+                if emergency_status.emergency_mode:
+                    self.alert_system.add_alert(
+                        alert_type="EMERGENCY_DETECTED",
+                        severity="CRITICAL",
+                        message=emergency_status.message,
+                        source="emergency",
+                    )
+                self.alert_system.clear_old_alerts(settings.ALERT_MAX_AGE_SECONDS)
+                
+                # Draw ROIs and encode frame to base64
+                drawn_frame = draw_rois(frame.copy(), lane_counts, signal_times, priority_lane)
+                
+                # DRAW THE DETECTED VEHICLES!
+                drawn_frame = self.detector.draw_detections(drawn_frame, detections)
+                
+                import cv2, base64
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+                _, buffer = cv2.imencode('.jpg', drawn_frame, encode_param)
+                frame_b64 = base64.b64encode(buffer).decode('utf-8')
+                
+                # Create state snapshot
                 self.current_state = self._create_state(
-                    result["counts"],
-                    result["congestion_status"],
-                    result["emergency_status"],
-                    lane_counts=result["lane_counts"],
-                    signal_times=result["signal_times"],
-                    priority_lane=result["priority_lane"],
-                    frame_b64=result["frame_b64"],
-                    network_state=result["network_state"],
-                    solar_data=result["solar_data"],
-                    env_data=result["env_data"],
+                    counts, congestion_status, emergency_status,
+                    lane_counts=lane_counts,
+                    signal_times=signal_times,
+                    priority_lane=priority_lane,
+                    frame_b64=frame_b64,
+                    network_state=network_state,
+                    solar_data=solar_data,
+                    env_data=env_data,
                 )
                 
                 # Trigger callback if set
                 if self.on_state_update:
                     self.on_state_update(self.current_state)
                 
+                # Calculate processing metrics
+                process_time = time.time() - process_start
+                self.processing_times.append(process_time)
+                if len(self.processing_times) > 100:
+                    self.processing_times = self.processing_times[-100:]
+                self.avg_fps = 1.0 / (sum(self.processing_times) / len(self.processing_times))
+                
                 self.last_state_update = time.time()
                 
                 # Control frame rate
                 target_interval = 1.0 / settings.VIDEO_FPS
-                if result["process_time"] < target_interval:
-                    await asyncio.sleep(target_interval - result["process_time"])
+                elapsed = time.time() - process_start
+                sleep_time = max(0.01, target_interval - elapsed)
+                await asyncio.sleep(sleep_time)
                     
             except Exception as e:
                 logger.error(f"Processing error: {e}")

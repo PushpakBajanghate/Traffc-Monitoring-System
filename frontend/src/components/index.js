@@ -7,7 +7,7 @@ export { default as StatsPanel } from './StatsPanel';
 export { default as LiveCameraFeed } from './LiveCameraFeed';
 export { default as AdvancedStats } from './AdvancedStats';
 export { default as CameraModal } from './CameraModal';
-export { default as InteractiveTrafficMap } from './InteractiveTrafficMap';
+
 export { default as AlertsPanel } from './AlertsPanel';
 export { default as TrafficPrediction } from './TrafficPrediction';
 export { default as SignalControlPanel } from './SignalControlPanel';
